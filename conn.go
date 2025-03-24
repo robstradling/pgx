@@ -1411,21 +1411,23 @@ func (c *Conn) deallocateInvalidatedCachedStatements(ctx context.Context) error 
 		return nil
 	}
 
-	pipeline := c.pgConn.StartPipeline(ctx)
-	defer pipeline.Close()
+	if !c.pgConn.IsClosed() {
+		pipeline := c.pgConn.StartPipeline(ctx)
+		defer pipeline.Close()
 
-	for _, sd := range invalidatedStatements {
-		pipeline.SendDeallocate(sd.Name)
-	}
+		for _, sd := range invalidatedStatements {
+			pipeline.SendDeallocate(sd.Name)
+		}
 
-	err := pipeline.Sync()
-	if err != nil {
-		return fmt.Errorf("failed to deallocate cached statement(s): %w", err)
-	}
+		err := pipeline.Sync()
+		if err != nil {
+			return fmt.Errorf("failed to deallocate cached statement(s): %w", err)
+		}
 
-	err = pipeline.Close()
-	if err != nil {
-		return fmt.Errorf("failed to deallocate cached statement(s): %w", err)
+		err = pipeline.Close()
+		if err != nil {
+			return fmt.Errorf("failed to deallocate cached statement(s): %w", err)
+		}
 	}
 
 	c.statementCache.RemoveInvalidated()
